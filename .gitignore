@@ -14,11 +14,19 @@ npm-debug.log
 yarn-error.log
 
 # Environment variables
+<<<<<<< HEAD
 .env
 .env.local
 .env.development.local
 .env.test.local
 .env.production.local
+=======
+**/.env
+**/.env.local
+**/.env.development.local
+**/.env.test.local
+**/.env.production.local
+>>>>>>> back-up
 
 # Google credentials
 google*.json
@@ -35,4 +43,12 @@ google*.json
 .idea/
 .vscode/
 *.log
+<<<<<<< HEAD
 *.swp
+=======
+*.swp
+
+# Lock files
+*-lock.json
+**/*-lock.json
+>>>>>>> back-up
