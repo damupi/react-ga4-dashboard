@@ -8,6 +8,8 @@ import { Chart as ChartJS, ArcElement, CategoryScale, LinearScale, PointElement,
 
 ChartJS.register(ArcElement, CategoryScale, LinearScale, PointElement, LineElement, Title, Tooltip, Legend);
 
+import ChartComponent from './ChartComponent';
+
 function App() {
   const [lineData, setLineData] = useState({
     labels: [], // Ensuring empty labels array as default
@@ -173,6 +175,16 @@ function App() {
               No device data available for the selected date range.
             </div>
           )}
+        </div>
+        <div className="row">
+          <div className="col-md-12">
+            <h1>Data Visualization with React-Chartjs-2 in React</h1>
+            <div className="card shadow-sm">
+              <div className="card-body">
+                <ChartComponent type="Bar" text='Total Users Over Time' />
+              </div>
+            </div>
+          </div>
         </div>
       </div>
     </div>
