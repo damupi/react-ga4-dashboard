@@ -1,19 +1,24 @@
-// Google Analytics Dashboard - Version 3.0
-
-import React, { useState, useCallback } from 'react';
-import { Chart } from 'react-google-charts';
+import React, { useState, useCallback, useEffect } from 'react';
+import { Line, Pie } from 'react-chartjs-2';
 import DatePicker from 'react-datepicker';
 import 'bootstrap/dist/css/bootstrap.min.css';
 import './App.css';
+import IsLoading from './IsLoading';
+import { Chart as ChartJS, ArcElement, CategoryScale, LinearScale, PointElement, LineElement, Title, Tooltip, Legend } from 'chart.js';
 
-// Remove this line:
-// import './DatePicker.css';
+ChartJS.register(ArcElement, CategoryScale, LinearScale, PointElement, LineElement, Title, Tooltip, Legend);
 
 function App() {
-  const [lineData, setLineData] = useState([]);
-  const [donutData, setDonutData] = useState([]);
-  const [startDate, setStartDate] = useState(new Date('2024-08-01'));
-  const [endDate, setEndDate] = useState(new Date('2024-08-31'));
+  const [lineData, setLineData] = useState({
+    labels: [], // Ensuring empty labels array as default
+    datasets: [] // Ensuring empty datasets array as default
+  });
+  const [donutData, setDonutData] = useState({
+    labels: [],
+    datasets: []
+  });
+  const [startDate, setStartDate] = useState(new Date(new Date().setDate(new Date().getDate() - 29)));
+  const [endDate, setEndDate] = useState(new Date(new Date().setDate(new Date().getDate() - 1)));
   const [isLoading, setIsLoading] = useState(false);
   const [isDatePickerOpen, setIsDatePickerOpen] = useState(false);
 
@@ -25,45 +30,49 @@ function App() {
     fetch(`http://localhost:8000/api/ga-data?start=${startStr}&end=${endStr}`)
       .then(response => response.json())
       .then(data => {
-        console.log('Raw data from API:', data);
-
-        if (!data.usersData || !data.usersData.rows || data.usersData.rows.length === 0) {
-          console.error('No user data received from API');
-          setLineData([]);
-          setDonutData([]);
+        // Ensure that usersData and deviceData exist and have rows
+        if (!data || !data.usersData || !data.usersData.rows || !data.deviceData || !data.deviceData.rows) {
+          console.error('No valid data received from API');
+          setLineData({ labels: [], datasets: [] });
+          setDonutData({ labels: [], datasets: [] });
           setIsLoading(false);
           return;
         }
 
-        // Process line chart data
+        // Line chart data processing
+        const labels = [];
+        const totalUsers = [];
         const dateMap = new Map(data.usersData.rows.map(row => [
           row.dimensionValues[0].value,
           parseInt(row.metricValues[0].value, 10)
         ]));
 
-        const allDates = [];
         for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
           const dateString = d.toISOString().split('T')[0].replace(/-/g, '');
-          allDates.push([dateString, dateMap.get(dateString) || 0]);
+          labels.push(dateString);
+          totalUsers.push(dateMap.get(dateString) || 0);
         }
 
-        const lineChartData = [
-          ['Date', 'Total Users'],
-          ...allDates
-        ];
+        setLineData({
+          labels,
+          datasets: [{
+            label: 'Total Users',
+            data: totalUsers,
+            borderColor: 'rgba(75,192,192,1)',
+            backgroundColor: 'rgba(75,192,192,0.2)',
+            pointRadius: 5,
+          }]
+        });
 
-        setLineData(lineChartData);
+        // Donut chart data processing
+        setDonutData({
+          labels: data.deviceData.rows.map(row => row.dimensionValues[0].value),
+          datasets: [{
+            data: data.deviceData.rows.map(row => parseInt(row.metricValues[0].value, 10)),
+            backgroundColor: ['#FF6384', '#36A2EB', '#FFCE56'],
+          }]
+        });
 
-        // Process donut chart data
-        const donutChartData = [
-          ['Device Category', 'Total Users'],
-          ...data.deviceData.rows.map(row => [
-            row.dimensionValues[0].value,
-            parseInt(row.metricValues[0].value, 10)
-          ])
-        ];
-
-        setDonutData(donutChartData);
         setIsLoading(false);
       })
       .catch(error => {
@@ -71,6 +80,10 @@ function App() {
         setIsLoading(false);
       });
   }, []);
+
+  useEffect(() => {
+    fetchData(new Date(new Date().setDate(new Date().getDate() - 29)), new Date(new Date().setDate(new Date().getDate() - 1)));
+  }, [fetchData]);
 
   const handleDateChange = (dates) => {
     const [start, end] = dates;
@@ -114,30 +127,23 @@ function App() {
           </div>
         </div>
       </div>
+
       <div className="row">
         <div className="col-md-8">
           {isLoading ? (
-            <div className="d-flex justify-content-center">
-              <div className="spinner-border text-primary" role="status">
-                <span className="visually-hidden">Loading...</span>
-              </div>
-            </div>
-          ) : lineData.length > 0 ? (
+            <IsLoading />
+          ) : lineData && lineData.datasets.length > 0 ? (
             <div className="card shadow-sm">
               <div className="card-body">
-                <Chart
-                  chartType="LineChart"
-                  width="100%"
-                  height="400px"
-                  data={lineData}
-                  options={{
-                    title: 'Total Users Over Time',
-                    interpolateNulls: false,
-                    pointSize: 5,
-                    legend: { position: 'bottom' },
-                    chartArea: { width: '80%', height: '70%' },
-                  }}
-                />
+                <Line data={lineData} options={{
+                  responsive: true,
+                  title: { display: true, text: 'Total Users Over Time' },
+                  scales: {
+                    x: { title: { display: true, text: 'Date' } },
+                    y: { title: { display: true, text: 'Total Users' } }
+                  },
+                  elements: { point: { radius: 5 } }
+                }} />
               </div>
             </div>
           ) : (
@@ -146,28 +152,20 @@ function App() {
             </div>
           )}
         </div>
+
         <div className="col-md-4">
           {isLoading ? (
-            <div className="d-flex justify-content-center">
-              <div className="spinner-border text-primary" role="status">
-                <span className="visually-hidden">Loading...</span>
-              </div>
-            </div>
-          ) : donutData.length > 0 ? (
+            <IsLoading />
+          ) : donutData && donutData.datasets.length > 0 ? (
             <div className="card shadow-sm">
               <div className="card-body">
-                <Chart
-                  chartType="PieChart"
-                  width="100%"
-                  height="400px"
-                  data={donutData}
-                  options={{
-                    title: 'Users by Device Category',
-                    pieHole: 0.4,
-                    legend: { position: 'bottom' },
-                    chartArea: { width: '80%', height: '70%' },
-                  }}
-                />
+                <Pie data={donutData} options={{
+                  responsive: true,
+                  title: { display: true, text: 'Users by Device Category' },
+                  plugins: {
+                    legend: { position: 'bottom' }
+                  }
+                }} />
               </div>
             </div>
           ) : (
