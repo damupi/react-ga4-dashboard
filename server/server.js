@@ -42,6 +42,7 @@ app.get('/api/ga-data', async (req, res) => {
                     dateRanges: [{ startDate: start, endDate: end }],
                     dimensions: [{ name: 'date' }],
                     metrics: [{ name: 'totalUsers' }, { name:'sessions' }, { name:'screenPageViews' }],
+                    orderBys: [{ dimension: { orderType: 'NUMERIC', dimensionName: 'date' }, desc: false }],
                 }
             ]
         });
@@ -49,7 +50,7 @@ app.get('/api/ga-data', async (req, res) => {
         res.json({ 
             usersData: response.reports[0], 
             deviceData: response.reports[1], 
-            comboData: response.reports[2] 
+            comboData: response.reports[2], 
         });
     } catch (error) {
         console.error('Error fetching GA4 data:', error);

@@ -14,6 +14,11 @@ function App() {
     labels: [],
     datasets: []
   });
+  const [comboData, setComboData] = useState({
+    labels: [],
+    datasets: []
+  });
+
   const [startDate, setStartDate] = useState(new Date(new Date().setDate(new Date().getDate() - 29)));
   const [endDate, setEndDate] = useState(new Date(new Date().setDate(new Date().getDate() - 1)));
   const [isLoading, setIsLoading] = useState(false);
@@ -27,26 +32,27 @@ function App() {
     fetch(`http://localhost:8000/api/ga-data?start=${startStr}&end=${endStr}`)
       .then(response => response.json())
       .then(data => {
-        // Ensure that usersData and deviceData exist and have rows
-        if (!data || !data.usersData || !data.usersData.rows || !data.deviceData || !data.deviceData.rows) {
+        // Ensure that usersData and deviceData, and comboData exist and have rows
+        if (!data || !data.usersData || !data.usersData.rows || !data.deviceData || !data.deviceData.rows || !data.comboData || !data.comboData.rows) {
           console.error('No valid data received from API');
           setLineData({ labels: [], datasets: [] });
           setDonutData({ labels: [], datasets: [] });
-          // setComboData({ labels: [], datasets: [] });
+          setComboData({ labels: [], datasets: [] });
           setIsLoading(false);
           return;
         } 
 
-        // Line chart data processing
-        const labels = [];
-        const metric = [];
-
         // function to parse the date dimension values
-        function parseDateRequest(request) {
-          const dateMap = new Map(request.rows.map(row => [
-            row.dimensionValues[0].value,
-            parseInt(row.metricValues[0].value, 10)
+        function parseRequest(request) {
+          let labels = [];
+          let metrics = [];
+
+          const requestMap = new Map(request.rows.map((row) => [
+            row.dimensionValues.map((dimensionValue) => dimensionValue.value).join(','),
+            row.metricValues.map((metricValue) => parseInt(metricValue.value, 10)).reduce((acc, current) => acc + current)
           ]));
+
+          // console.log('requestMap', requestMap);
         
           // loop that iterates throgh start and end date picker
           // converts the date type to string
@@ -55,14 +61,47 @@ function App() {
           for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
             const dateString = d.toISOString().split('T')[0].replace(/-/g, '');
             labels.push(dateString);
-            metric.push(dateMap.get(dateString) || 0);
+            metrics.push(requestMap.get(dateString) || 0);
           }
-          return { labels: labels, data: metric };
+          return { labels: labels, data: metrics };
 
         }
+
+        function parseRequest2(request) {
+          const { dimensionHeaders, metricHeaders, rows } = request;
         
-        // Bar chart data processing
-        const lineParse =  parseDateRequest(data.usersData);
+          const parseData = {
+            dimension: {},
+            metric: {}
+          };
+        
+          // Initialize dimension objects with keys from dimensionHeaders
+          dimensionHeaders.forEach((header, index) => {
+            parseData.dimension[header.name] = [];
+          });
+        
+          // Initialize metric objects with keys from metricHeaders
+          metricHeaders.forEach((header, index) => {
+            parseData.metric[header.name] = [];
+          });
+        
+          // Populate dimension and metric values from rows
+          rows.forEach((row) => {
+            row.dimensionValues.forEach((dimensionValue, index) => {
+              parseData.dimension[dimensionHeaders[index].name].push(dimensionValue.value);
+            });
+        
+            row.metricValues.forEach((metricValue, index) => {
+              parseData.metric[metricHeaders[index].name].push(metricValue.value);
+            });
+          });
+        
+          return parseData;
+        }
+        
+        
+        // Line chart data processing
+        const lineParse =  parseRequest(data.usersData);
 
 
         setLineData({
@@ -86,16 +125,40 @@ function App() {
         });
 
         // Combo chart data processing
+        const comboParse = parseRequest2(data.comboData);
+        console.log('comboData', data.comboData);
+        console.log('comboParse', comboParse);
+        
         setComboData({
-          labels: data.comboData.rows.map(row => row.dimensionValues[0].value),
-          datasets: [{
-            data: data.comboData.rows.map(row => parseInt(row.metricValues[0].value, 10)),
-            backgroundColor: ['#FF6384', '#36A2EB', '#FFCE56'],
-          }]
+          labels: comboParse.dimension.date,
+          datasets: [
+            {
+              type: 'bar',
+              label: 'Total Users',
+              data: comboParse.metric.totalUsers,
+              backgroundColor: 'rgba(75,192,192,0.2)',
+              borderColor: 'rgba(75,192,192,1)',
+            },
+            {
+              type: 'bar',
+              label: 'Sessions',
+              data: comboParse.metric.sessions,
+              backgroundColor: 'rgba(75,192,192,0.2)',
+              borderColor: 'rgba(75,192,192,1)',
+            },
+            {
+              type: 'line',
+              label: 'Page Views',
+              data: comboParse.metric.screenPageViews,
+              fill: false,
+              borderColor: 'rgba(153,102,255,1)',
+            },
+          ]
         });
 
         setIsLoading(false);
       })
+
       .catch(error => {
         console.error('Error fetching data:', error);
         setIsLoading(false);
@@ -224,9 +287,53 @@ function App() {
         <div className="row">
           <div className="col-md-12">
             <h1>Data Visualization with React-Chartjs-2 in React</h1>
+
+          {isLoading ? (
+            <IsLoading />
+          ) : lineData && lineData.datasets.length > 0 ? (
             <div className="card shadow-sm">
               <div className="card-body">
-                <ChartComponent type="Bar" data={chartData} options={{
+                <ChartComponent type="Bar" data={comboData} options={{
+                  responsive: true,
+                  plugins: {
+                    legend: {
+                      position: "top"
+                    },
+                    title: {
+                      display: true,
+                      text: "Testing title"
+                    },
+                    scales: {
+                      x: {
+                        type: "category",
+                        grid: {
+                          display: true
+                        }
+                      },
+                      y: {
+                        grid: {
+                          display: true
+                        },
+                        ticks: {
+                          beginAtZero: true
+                        }
+                      }
+                    }
+                  }
+                }} />
+              </div>
+            </div>
+          ) : (
+            <div className="alert alert-info" role="alert">
+              No data available for the selected date range.
+            </div>
+          )}
+
+
+            {/* Old card
+            <div className="card shadow-sm">
+              <div className="card-body">
+                <ChartComponent type="Bar" data={comboData} options={{
                   responsive: true,
                   plugins: {
                     legend: {
@@ -255,7 +362,11 @@ function App() {
                   }
                 }} />
               </div>
-            </div>
+            </div> */}
+
+
+
+
           </div>
         </div>
       </div>
