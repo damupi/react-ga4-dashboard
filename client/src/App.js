@@ -162,12 +162,15 @@ function App() {
               <div className="card-body">
                 <ChartComponent type="Line" data={lineData} options={{
                   responsive: true,
-                  title: { display: true, text: 'Total Users Over Time' },
                   scales: {
                     x: { title: { display: false, text: 'Date' } },
                     y: { title: { display: false, text: 'Total Users' } }
                   },
-                  elements: { point: { radius: 5 } }
+                  elements: { point: { radius: 5 } },
+                  plugins: {
+                    legend: { position: 'bottom' },
+                    title: { display: true, text: 'Total Users Over Time' }
+                  }
                 }} />
               </div>
             </div>
@@ -184,11 +187,11 @@ function App() {
               <div className="card-body">
                 <ChartComponent type="Pie" data={donutData} options={{
                   responsive: true,
-                  title: {
-                    display: true,
-                    text: "Users by Category Device"
-                  },
                   plugins: {
+                    title: {
+                      display: true,
+                      text: "Users by Category Device"
+                    },
                     legend: { position: 'bottom' }
                   }
                 }} />
@@ -209,24 +212,8 @@ function App() {
                       display: true,
                       text: "Total Users, Sessions and Views"
                     },
-                    scales: {
-                      x: {
-                        type: "category",
-                        grid: {
-                          display: true
-                        }
-                      },
-                      y: {
-                        grid: {
-                          display: true
-                        },
-                        ticks: {
-                          beginAtZero: true
-                        }
-                      }
-                    },
                     legend: {
-                      position: "top"
+                      position: "bottom"
                     }
                   }
                 }} />
